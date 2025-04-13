@@ -28,7 +28,7 @@ Restraunts
   name: char,
   small_description: char,
   large_description: long char,
-  attributes: json
+  attributes: json, # {vegan: true}  etcs
   cousines: fk_id,
   locations: hash_values, (quad_treee)
   deleted: bool,
@@ -64,11 +64,27 @@ Dishes
 Restaurants OTM dishes
 
 APIs
-GET /search?restaurant_name={{name}}&user_info={uuid}&user_location
 
-Elsatic search to do this by name easily # Fill this in for me chatgpt what the select would look like etcs.
+GET /search?q={{value}}&user_info={uuid}&user_location
 
-SELECT 
+where q value is going to be searched through elastic search which is reverse indexed from postgres every hour or so.
+
+query: {
+  multi_match: {
+    fields: ["name^3", "small_description^2", "large_description^2", "cuisine^2"]
+  }
+  script_score: {
+    script: {
+      source: """
+        double relevance = \_score,
+        double rating = doc['avg_rating'].value
+        double reviews = doc['num_reviews'].value
+        return relavance * (rating + (reviews / 100.0))
+      """
+    }
+  }
+}
+
 GET /search?cousines=cousine1,cousine2,&user_info={uuid}&user_location
 Elsatic search to do this by name easily same thing in here # Same here...
 
