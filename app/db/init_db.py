@@ -2,8 +2,13 @@ from db.models import Base, Cuisine, Restaurant, Dish
 from db.session import DBFactory
 from sqlalchemy.orm import Session
 from datetime import datetime
+from faker import Faker
+
 import uuid
 import time
+import random
+
+faker = Faker()
 
 def wait_for_db(engine):
     while True:
@@ -15,69 +20,65 @@ def wait_for_db(engine):
             print("⏳ Waiting for DB...")
             time.sleep(1)
 
+
 def seed_mock_data(session: Session):
-    if session.query(Cuisine).first():
-        print("🟡 Mock data already exists, skipping...")
-        return
+    print("🌱 Seeding new mock data...")
 
-    print("🌱 Inserting mock data...")
-
-    # Create cuisines
-    italian = Cuisine(name="italian", description="Pasta, pizza, olive oil")
-    korean = Cuisine(name="korean", description="Kimchi, BBQ, rice")
-
-    session.add_all([italian, korean])
-    session.flush()  # get their IDs
-
-    # Create restaurant
-    r1 = Restaurant(
-        name="Pasta Palace",
-        small_description="Best pasta in town",
-        large_description="Handmade pasta and imported cheese",
-        attributes={"vegan": False, "outdoor_seating": True},
-        location_hash="hash1",
-        cuisines=[italian],
-        avg_rating=4.5,
-        num_reviews=132,
-        price_range=2,
-    )
-
-    r2 = Restaurant(
-        name="Seoul Kitchen",
-        small_description="Authentic Korean Cuisine",
-        large_description="Family recipes passed down for generations.",
-        attributes={"vegan": True, "outdoor_seating": False},
-        location_hash="hash2",
-        cuisines=[korean],
-        avg_rating=4.7,
-        num_reviews=211,
-        price_range=3,
-    )
-
-    session.add_all([r1, r2])
+    # Step 1: Create 10 cuisines
+    cuisine_names = [
+        "italian", "korean", "japanese", "chinese", "mexican",
+        "thai", "indian", "french", "greek", "vietnamese"
+    ]
+    cuisines = [Cuisine(name=name, description=faker.sentence()) for name in cuisine_names]
+    session.add_all(cuisines)
     session.flush()
 
-    # Dishes
-    d1 = Dish(
-        name="Spaghetti Carbonara",
-        description="Classic creamy pasta",
-        cuisine=italian,
-        restaurant=r1,
-        price=1800,
-    )
+    # Step 2: Create 100 restaurants
+    restaurants = []
+    for _ in range(100):
+        assigned_cuisines = random.sample(cuisines, k=random.randint(1, 3))
+        r = Restaurant(
+            name=faker.company(),
+            small_description=faker.catch_phrase(),
+            large_description=faker.paragraph(),
+            attributes={
+                "vegan": faker.boolean(),
+                "outdoor_seating": faker.boolean()
+            },
+            location_hash=f"hash_{faker.zipcode()}",
+            cuisines=assigned_cuisines,
+            avg_rating=round(random.uniform(2.5, 5.0), 1),
+            num_reviews=random.randint(5, 1000),
+            price_range=random.randint(1, 3),
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        )
+        restaurants.append(r)
+    session.add_all(restaurants)
+    session.flush()
 
-    d2 = Dish(
-        name="Bibimbap",
-        description="Rice bowl with veggies and egg",
-        cuisine=korean,
-        restaurant=r2,
-        price=1600,
-        is_featured=True
-    )
-
-    session.add_all([d1, d2])
+    # Step 3: Create dishes for each restaurant
+    dishes = []
+    for r in restaurants:
+        for _ in range(random.randint(3, 10)):
+            cuisine = random.choice(r.cuisines)
+            d = Dish(
+                name=faker.word().title() + " " + random.choice(["Special", "Delight", "Surprise"]),
+                description=faker.sentence(),
+                cuisine=cuisine,
+                restaurant=r,
+                price=random.randint(1000, 4000),
+                image_url=faker.image_url(),
+                is_featured=random.choice([True, False]),
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
+            dishes.append(d)
+    session.add_all(dishes)
     session.commit()
-    print("✅ Mock data seeded.")
+
+    print(f"✅ Seeded {len(cuisines)} cuisines, {len(restaurants)} restaurants, {len(dishes)} dishes.")
+
 
 def init():
     factory = DBFactory.get_instance()
@@ -88,6 +89,11 @@ def init():
     SessionFactory = factory.get_session_factory()
     session = SessionFactory()
     try:
+        print("🔥 Dropping all tables...")
+        Base.metadata.drop_all(engine)
+        
+        print("📦 Creating tables...")
+        Base.metadata.create_all(engine)
         seed_mock_data(session)
     finally:
         session.close()

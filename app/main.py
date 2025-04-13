@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from db import DBFactory, Restaurant, Dish, Cuisine
+from db import DBFactory, Restaurant, Dish, Cuisine, init
 from typing import List
 
 # init()
