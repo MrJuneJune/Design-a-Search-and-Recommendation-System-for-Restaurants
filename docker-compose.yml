@@ -29,5 +29,31 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.1
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: curl -f http://localhost:9200 || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  indexer:
+    build:
+      context: .
+      dockerfile: Dockerfile.indexer
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://myuser:mypassword@db:5432/mydb
+      - ES_URL=http://elasticsearch:9200
+    volumes:
+      - ./app:/app
+
 volumes:
   pgdata:

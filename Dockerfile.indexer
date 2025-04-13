@@ -1,0 +1,19 @@
+FROM python:3.11
+
+# Set working dir to indexer, we'll install app separately
+WORKDIR /indexer
+
+COPY app /app
+COPY setup.py /app/setup.py
+
+WORKDIR /app
+RUN pip install -e .
+
+WORKDIR /indexer
+COPY app/requirements.txt .
+COPY indexer/indexer.py .
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+CMD ["python", "indexer.py"]
+
