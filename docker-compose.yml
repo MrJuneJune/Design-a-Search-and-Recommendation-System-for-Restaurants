@@ -10,9 +10,9 @@ services:
     depends_on:
       - db
     volumes:
-      - ./app:/app # Optional: Mount your local 'app' directory for development
+      - ./app:/app
     environment:
-      - ENVIRONMENT=development # Example environment variable
+      - ENVIRONMENT=development
       - DATABASE_URL=postgresql://myuser:mypassword@db:5432/mydb
     command: >
       bash -c "
@@ -56,6 +56,7 @@ services:
       - ES_URL=http://elasticsearch:9200
     volumes:
       - ./app:/app
+      - ./indexer:/indexer
 
 volumes:
   pgdata:
