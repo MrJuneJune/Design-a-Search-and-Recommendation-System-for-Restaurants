@@ -7,25 +7,67 @@ from typing import List
 from elasticsearch import Elasticsearch
 import os
 
+# Reset DB
+init()
+
+# Elastic search 
 ES_URL = os.getenv("ES_URL", "http://elasticsearch:9200")
 es = Elasticsearch(ES_URL)
 
-def search_restaurants(query: str):
+def search_restaurants(query: str, lat: float = None, lon: float = None):
     """
-    serach restauarant, and we do it by calculating socre
-    _score = function of (
-        term frequency in field,
-        how rare the term is in the index,
-        field length,
-        optional field boost
-    )    
+    Search restaurants using full-text match across name, description, and cuisines.
+
+    Scoring logic (Elasticsearch default BM25):
+        _score = function of (
+            term frequency in field,         # how often query term appears
+            inverse document frequency,      # how rare the term is across all docs
+            field length normalization,      # short fields weigh more
+            optional field boost (name^3)    # custom boosts for relevance
+
+    Field Boosts:
+        name:                ^3    (very important)
+        small_description:   ^2
+        large_description:   ^1
+        cuisines:            ^3    (strong influence)
+
+    If lat/lon are provided, results are further boosted by proximity to user.
     """
-    result = es.search(index="restaurants", query={
-        "multi_match": {
-            "query": query,
-            "fields": ["name", "small_description", "large_description", "cuisines"]
+
+    base_query = {
+        "function_score": {
+            "query": {
+                "multi_match": {
+                    "query": query,
+                    "fields": [
+                        "name^3",
+                        "small_description^2",
+                        "large_description",
+                        "cuisines^3"
+                    ]
+                }
+            },
+            "boost_mode": "multiply",
+            "score_mode": "sum",
+            "functions": []
         }
-    })
+    }
+
+    if lat is not None and lon is not None:
+        # Add location boost using gaussian decay
+        base_query["function_score"]["functions"].append({
+            "gauss": {
+                "location": {
+                    "origin": {"lat": lat, "lon": lon},
+                    "scale": "10km",
+                    "offset": "1km",
+                    "decay": 0.5
+                }
+            },
+            "weight": 3.0  
+        })
+
+    result = es.search(index="restaurants", query=base_query)
 
     return [
         {
@@ -37,7 +79,6 @@ def search_restaurants(query: str):
     ]
 
 
-# init()
 app = APIRouter()
 
 def get_db():
@@ -72,4 +113,14 @@ def get_restaurants(
 @app.get("/v2/restaurants/search")
 def search(q: str = Query(...)):
     results = search_restaurants(q)
+    return results
+
+
+@app.get("/v3/restaurants/search")
+def search(
+    q: str = Query(...),
+    lat: float = Query(None),
+    lon: float = Query(None),
+):
+    results = search_restaurants(q, lat, lon)
     return results

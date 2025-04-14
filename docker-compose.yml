@@ -47,6 +47,8 @@ services:
       context: .
       dockerfile: Dockerfile.indexer
     depends_on:
+      db:
+        condition: service_started
       elasticsearch:
         condition: service_healthy
     environment:

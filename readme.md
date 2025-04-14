@@ -15,6 +15,7 @@ User {
   username: whatever
   passowrd: hashed
 }
+design-a-search-recommendation-system-for-restaurants
 
 Profile: {
   id: uuid,

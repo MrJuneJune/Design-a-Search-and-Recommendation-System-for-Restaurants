@@ -28,6 +28,8 @@ class Restaurant(Base):
     avg_rating = Column(Float, default=0.0)
     num_reviews = Column(Integer, default=0)
     price_range = Column(Integer)  # e.g. 1 = cheap, 2 = medium, 3 = expensive
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
     deleted = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)

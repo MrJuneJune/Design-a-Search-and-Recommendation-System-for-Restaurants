@@ -50,6 +50,8 @@ def seed_mock_data(session: Session):
             avg_rating=round(random.uniform(2.5, 5.0), 1),
             num_reviews=random.randint(5, 1000),
             price_range=random.randint(1, 3),
+            latitude=faker.latitude(),
+            longitude=faker.longitude(), 
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow(),
         )
