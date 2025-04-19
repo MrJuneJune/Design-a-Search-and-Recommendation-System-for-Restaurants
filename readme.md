@@ -2,7 +2,7 @@
 
 ## Design
 
-![design](https://hub.babocoder.com/mrjunejune/design-a-search-recommendation-system-for-restaurants/src/branch/main/design.svg)
+![design](./design.svg)
 
 ## Pre-requisite
 
