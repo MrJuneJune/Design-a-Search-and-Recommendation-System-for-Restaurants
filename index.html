@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Restaurant Search</title>
+</head>
+<body>
+  <h1>Restaurant Search</h1>
+
+  <section>
+    <h2>Health Check</h2>
+    <button onclick="healthCheck()">Ping API</button>
+    <pre id="health-output"></pre>
+  </section>
+
+  <section>
+    <h2>Search by Cuisines (v1)</h2>
+    <input id="cuisines-input" placeholder="e.g., Italian,Chinese" />
+    <button onclick="searchByCuisines()">Search</button>
+    <pre id="v1-output"></pre>
+  </section>
+
+  <section>
+    <h2>Search by Keyword (v2)</h2>
+    <input id="keyword-input" placeholder="e.g., pizza" />
+    <button onclick="searchByKeyword()">Search</button>
+    <pre id="v2-output"></pre>
+  </section>
+
+  <section>
+    <h2>Search by Keyword + Location (v3)</h2>
+    <input id="keyword-loc-input" placeholder="e.g., sushi" />
+    <input id="lat-input" placeholder="Latitude" />
+    <input id="lon-input" placeholder="Longitude" />
+    <button onclick="searchByKeywordWithLocation()">Search</button>
+    <pre id="v3-output"></pre>
+  </section>
+
+  <script>
+    const BASE_URL = "http://localhost:8000"; 
+
+    async function healthCheck() {
+      const res = await fetch(`${BASE_URL}/`);
+      document.getElementById("health-output").textContent = JSON.stringify(await res.json(), null, 2);
+    }
+
+    async function searchByCuisines() {
+      const cuisines = document.getElementById("cuisines-input").value.split(',').map(s => s.trim());
+      const url = new URL(`${BASE_URL}/v1/restaurants/search`);
+      cuisines.forEach(c => url.searchParams.append("cuisines", c));
+      const res = await fetch(url);
+      console.log(res);
+      document.getElementById("v1-output").textContent = JSON.stringify(await res.json(), null, 2);
+    }
+
+    async function searchByKeyword() {
+      const q = document.getElementById("keyword-input").value;
+      const res = await fetch(`${BASE_URL}/v2/restaurants/search?q=${encodeURIComponent(q)}`);
+      document.getElementById("v2-output").textContent = JSON.stringify(await res.json(), null, 2);
+    }
+
+    async function searchByKeywordWithLocation() {
+      const q = document.getElementById("keyword-loc-input").value;
+      const lat = document.getElementById("lat-input").value;
+      const lon = document.getElementById("lon-input").value;
+      const url = new URL(`${BASE_URL}/v3/restaurants/search`);
+      url.searchParams.set("q", q);
+      if (lat) url.searchParams.set("lat", lat);
+      if (lon) url.searchParams.set("lon", lon);
+      const res = await fetch(url);
+      document.getElementById("v3-output").textContent = JSON.stringify(await res.json(), null, 2);
+    }
+  </script>
+</body>
+</html>
+

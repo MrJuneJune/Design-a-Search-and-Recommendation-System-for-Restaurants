@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import FastAPI, APIRouter, Depends, Query
+from starlette.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from db import DBFactory, Restaurant, Dish, Cuisine, init
 from typing import List
 
@@ -8,7 +10,7 @@ from elasticsearch import Elasticsearch
 import os
 
 # Reset DB
-init()
+# init()
 
 # Elastic search 
 ES_URL = os.getenv("ES_URL", "http://elasticsearch:9200")
@@ -17,55 +19,58 @@ es = Elasticsearch(ES_URL)
 def search_restaurants(query: str, lat: float = None, lon: float = None):
     """
     Search restaurants using full-text match across name, description, and cuisines.
-
-    Scoring logic (Elasticsearch default BM25):
-        _score = function of (
-            term frequency in field,         # how often query term appears
-            inverse document frequency,      # how rare the term is across all docs
-            field length normalization,      # short fields weigh more
-            optional field boost (name^3)    # custom boosts for relevance
-
-    Field Boosts:
-        name:                ^3    (very important)
-        small_description:   ^2
-        large_description:   ^1
-        cuisines:            ^3    (strong influence)
-
-    If lat/lon are provided, results are further boosted by proximity to user.
+    If query is empty, only return restaurants near (lat, lon) using geo filter.
     """
 
-    base_query = {
-        "function_score": {
-            "query": {
-                "multi_match": {
-                    "query": query,
-                    "fields": [
-                        "name^3",
-                        "small_description^2",
-                        "large_description",
-                        "cuisines^3"
-                    ]
+    if query.strip() == "" and lat is not None and lon is not None:
+        # Location-only search (no full-text match)
+        base_query = {
+            "bool": {
+                "filter": {
+                    "geo_distance": {
+                        "distance": "10km",
+                        "location": {
+                            "lat": lat,
+                            "lon": lon
+                        }
+                    }
                 }
-            },
-            "boost_mode": "multiply",
-            "score_mode": "sum",
-            "functions": []
+            }
         }
-    }
 
-    if lat is not None and lon is not None:
-        # Add location boost using gaussian decay
-        base_query["function_score"]["functions"].append({
-            "gauss": {
-                "location": {
-                    "origin": {"lat": lat, "lon": lon},
-                    "scale": "10km",
-                    "offset": "1km",
-                    "decay": 0.5
-                }
-            },
-            "weight": 3.0  
-        })
+    else:
+        # Full-text search + optional location boosting
+        base_query = {
+            "function_score": {
+                "query": {
+                    "multi_match": {
+                        "query": query,
+                        "fields": [
+                            "name^3",
+                            "small_description^2",
+                            "large_description",
+                            "cuisines^3"
+                        ]
+                    }
+                },
+                "boost_mode": "multiply",
+                "score_mode": "sum",
+                "functions": []
+            }
+        }
+
+        if lat is not None and lon is not None:
+            base_query["function_score"]["functions"].append({
+                "gauss": {
+                    "location": {
+                        "origin": {"lat": lat, "lon": lon},
+                        "scale": "10km",
+                        "offset": "1km",
+                        "decay": 0.5
+                    }
+                },
+                "weight": 3.0
+            })
 
     result = es.search(index="restaurants", query=base_query)
 
@@ -78,8 +83,16 @@ def search_restaurants(query: str, lat: float = None, lon: float = None):
         for hit in result["hits"]["hits"]
     ]
 
+app = FastAPI()
 
-app = APIRouter()
+# Allowing CORS since it is just for view.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def get_db():
     SessionFactory = DBFactory.get_instance().get_session_factory()

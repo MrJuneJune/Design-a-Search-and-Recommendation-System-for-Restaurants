@@ -13,4 +13,6 @@
 
 ```
 docker-compose up --build
+
+python3 -m http.server 8080
 ```
